@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Beş Kural Asistanı</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Düzen: solda beş kapı (sırayla açılır), sağda her zaman görünen "kâğıt" (materyal). Mor = makinenin işi, kehribar = insanın işi. */
+:root{
+  --bg:#F7F6FB; --surface:#FFFFFF; --ink:#1B1A22; --muted:#625F70; --line:#E2DFEC;
+  --machine:#6B4EE6; --machine-soft:#EEEAFE; --human:#A8500A; --human-soft:#FFF1D6;
+  --ok:#1E7A3C; --warn:#B3261E; --paper:#FFFEFA;
+  --display:'Space Grotesk','Inter',system-ui,sans-serif; --body:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121118; --surface:#1C1B24; --ink:#F2F1F7; --muted:#A5A2B5; --line:#33313F;
+  --machine:#A996FF; --machine-soft:#2A2547; --human:#FBBF24; --human-soft:#3A2C0C;
+  --ok:#5CD488; --warn:#FF8A80; --paper:#211F2A; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#121118; --surface:#1C1B24; --ink:#F2F1F7; --muted:#A5A2B5; --line:#33313F;
+  --machine:#A996FF; --machine-soft:#2A2547; --human:#FBBF24; --human-soft:#3A2C0C;
+  --ok:#5CD488; --warn:#FF8A80; --paper:#211F2A; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:17px/1.5 var(--body);padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+header h1{font:700 40px/1.1 var(--display);letter-spacing:-.02em;margin:0;text-wrap:balance}
+header p{margin:8px 0 0;color:var(--muted);max-width:68ch}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:12px;font-size:14px;font-weight:600}
+.legend span::before{content:"";display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:7px;vertical-align:-1px}
+.legend .m::before{background:var(--machine)} .legend .h::before{background:var(--human)}
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;list-style:none;margin:0;padding:0}
+.steps li{padding:10px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-size:14px;font-weight:600;color:var(--muted);min-width:0}
+.steps li b{display:block;font:700 13px var(--display);letter-spacing:.08em}
+.steps li.now{border-color:var(--human);color:var(--ink);box-shadow:inset 0 -3px 0 var(--human)}
+.steps li.done{color:var(--ok);border-color:var(--ok)}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:22px;align-items:start}
+.gates{display:flex;flex-direction:column;gap:14px;min-width:0}
+.gate{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px;min-width:0}
+.gate h2{font:700 21px/1.2 var(--display);margin:0;display:flex;gap:10px;align-items:baseline}
+.gate h2 small{font:700 13px var(--display);letter-spacing:.08em;color:var(--muted)}
+.gate .why{margin:6px 0 0;color:var(--muted);font-size:15px}
+.gate.locked{opacity:.55} .gate.locked .body,.gate.done .body{display:none}
+.gate.done{border-color:var(--ok)} .gate.done h2 small{color:var(--ok)}
+.gate .sum{margin:6px 0 0;font-size:15px} .gate:not(.done) .sum{display:none}
+.gate.now{border-color:var(--human);box-shadow:0 0 0 3px var(--human-soft)}
+.body{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+label{font-size:14px;font-weight:600;display:flex;flex-direction:column;gap:5px}
+input[type=text],textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%}
+textarea{resize:vertical;min-height:60px}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--machine);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button{font:600 16px var(--body);border-radius:10px;padding:10px 16px;border:1px solid transparent;cursor:pointer}
+button[disabled]{opacity:.45;cursor:not-allowed}
+.btn-m{background:var(--machine);color:var(--surface)} .btn-h{background:var(--human);color:var(--surface)}
+.btn-q{background:transparent;border-color:var(--line);color:var(--ink)}
+.need{font-size:14px;color:var(--human);font-weight:600} .need.ok{color:var(--ok)}
+.note{font-size:14px;color:var(--muted)} .err{font-size:14px;color:var(--warn);font-weight:600}
+.check{flex-direction:row;align-items:flex-start;gap:9px;font-weight:500;font-size:15px}
+.check input{margin-top:4px;width:18px;height:18px;flex:none;accent-color:var(--human)}
+.claims{display:flex;flex-direction:column;gap:10px;list-style:none;margin:0;padding:0}
+.claims li{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+.claims q{font-weight:600;quotes:"“" "”"} .claims span{font-size:14px;color:var(--muted)}
+.claims li.res{border-color:var(--ok)}
+.callout{border-radius:12px;padding:12px 14px;font-size:15px;background:var(--human-soft)}
+.callout.calm{background:var(--machine-soft)}
+.callout a{color:inherit;font-weight:700}
+.paper{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.paper h2{font:700 21px var(--display);margin:0}
+.paper .state{font-size:14px;font-weight:600;color:var(--machine)}
+.paper textarea{min-height:420px;background:transparent;border-style:dashed;line-height:1.55}
+.paper textarea[readonly]{color:var(--muted)}
+.record{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:15px}
+.record b{font-family:var(--display)}
+#banner{background:var(--machine-soft);border-radius:12px;padding:12px 14px;font-size:15px}
+@media (max-width:860px){ .cols{grid-template-columns:minmax(0,1fr)} .paper{position:static} .paper textarea{min-height:280px} .steps{grid-template-columns:repeat(2,1fr)} header h1{font-size:30px} }
+@media (prefers-reduced-motion:no-preference){ .gate{transition:opacity .25s,border-color .25s,box-shadow .25s} }
+
+body{margin:0}
+dialog#relay{width:min(720px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;border:1px solid var(--line);border-radius:18px;padding:22px;background:var(--surface);color:var(--ink);font:inherit}
+dialog#relay::backdrop{background:rgba(10,9,16,.6)}
+dialog#relay h2{font:700 24px var(--display);margin:0 0 6px;color:var(--machine)}
+dialog#relay textarea{width:100%;font:15px/1.45 var(--body);padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--paper);color:var(--ink);resize:vertical}
+dialog#relay .rnote{margin:14px 0 8px;font-weight:600}
+dialog#relay .rlink{font-weight:600;color:var(--machine)}
+dialog#relay .row{margin-top:10px}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Beş Kural Asistanı</h1>
+  <p>Yapay zekâyla ders materyali hazırlarken beş kuralı sırayla uygulatır. Bir kapı kapanmadan sonraki açılmaz. Düşünmeyi sen yaparsın; araç yalnızca sıradaki adımı sorar.</p>
+  <div class="legend"><span class="m">Mor düğme: makine yazar</span><span class="h">Kehribar: senin işin</span></div>
+</header>
+
+<ol class="steps" id="steps">
+  <li><b>KAPI 1</b>Önce hedef</li><li><b>KAPI 2</b>Kalem sende</li><li><b>KAPI 3</b>Doğrula</li><li><b>KAPI 4</b>Kullandığını söyle</li><li><b>KAPI 5</b>Düşünmeyi devretme</li>
+</ol>
+
+<div id="banner" hidden></div>
+
+<div class="cols">
+<div class="gates">
+
+<section class="gate" id="g1">
+  <h2><small>KAPI 1</small>Önce hedef, sonra araç</h2>
+  <p class="why">Üçünü de yazmadan taslak istenmez.</p>
+  <p class="sum" id="s1"></p>
+  <div class="body">
+    <p class="note" id="exnote">Aşağıdakiler örnektir; kendi hedefinle değiştir.</p>
+    <label>Kime?<input type="text" id="kime" value="7. sınıf, 28 öğrenci, İngilizce dersi; çoğu konuşmaya çekiniyor"></label>
+    <label>Neyi?<textarea id="neyi" rows="2">Simple Past ile geçen hafta sonunu anlatma; 15 dakikalık ikili konuşma etkinliği</textarea></label>
+    <label>Neden?<textarea id="neden" rows="2">Kuralı biliyorlar ama konuşurken kullanamıyorlar; hata yapmaktan korkmadan konuşsunlar istiyorum</textarea></label>
+    <label>Ne üretilecek?<select id="tur"><option value="sinif">Sınıfta uygulanacak etkinlik (konuşma, tahta, kâğıt)</option><option value="dijital">Claude’a yaptırılacak dijital araç (simülasyon, oyun, etkileşimli sayfa)</option></select></label>
+    <p class="note" id="turnote" hidden>Bu seçimde taslak bir yapım yönergesi olur. Beş kapıdan geçince kopyalayıp Claude’a verirsin; aracı o kurar.</p>
+    <div class="row"><button class="btn-m" id="draftBtn">Taslağı iste</button><button class="btn-q" id="clearBtn">Örneği temizle</button><span class="need" id="n1"></span></div>
+  </div>
+</section>
+
+<section class="gate" id="g2">
+  <h2><small>KAPI 2</small>Taslak makineden, kalem sende</h2>
+  <p class="why">Taslağı olduğu gibi kabul edemezsin: en az bir şeyi kendin değiştir ya da değiştirt.</p>
+  <p class="sum" id="s2"></p>
+  <div class="body">
+    <p class="note">Sağdaki kâğıtta doğrudan yazabilir, silebilir, kısaltabilirsin.</p>
+    <label>Ya da ne değişsin, söyle<input type="text" id="revise" placeholder="Örnek: ikinci adımı çıkar, yerine ısınma sorusu koy"></label>
+    <div class="row"><button class="btn-m" id="reviseBtn">Bu isteğe göre değiştir</button><button class="btn-h" id="next2">Kalemi kullandım, ilerle</button></div>
+    <span class="need" id="n2"></span>
+  </div>
+</section>
+
+<section class="gate" id="g3">
+  <h2><small>KAPI 3</small>Akıcı olan her şeyi doğrula</h2>
+  <p class="why">Araç doğrulamaz; yalnızca neye bakman gerektiğini listeler. Her satıra sen karar verirsin.</p>
+  <p class="sum" id="s3"></p>
+  <div class="body">
+    <ul class="claims" id="claims"></ul>
+    <div class="row"><button class="btn-m" id="claimsBtn">Kontrol listesini yeniden çıkar</button><button class="btn-q" id="addClaim">Kendi maddeni ekle</button></div>
+    <div class="row"><button class="btn-h" id="next3">Hepsine baktım, ilerle</button><span class="need" id="n3"></span></div>
+  </div>
+</section>
+
+<section class="gate" id="g4">
+  <h2><small>KAPI 4</small>Kullandığını söyle</h2>
+  <p class="why">Açıklık ve kişisel veri. MEB'in etik beyan sistemi (YAZEK) öğrenciyle kullanımda beyan ister.</p>
+  <p class="sum" id="s4"></p>
+  <div class="body">
+    <label class="check"><input type="checkbox" id="y1">Öğrenciler bu etkinlikte yapay zekâ aracını kendileri kullanacak ya da derste birlikte kullanacağız.</label>
+    <label class="check"><input type="checkbox" id="y2">Öğrencilerin ödevini, sesini, notunu ya da başka bir verisini yapay zekâya işleteceğim.</label>
+    <label class="check"><input type="checkbox" id="y3">Yapay zekâyı ölçme, değerlendirme ya da gruplama için kullanacağım.</label>
+    <label class="check"><input type="checkbox" id="y0">Hiçbiri. Yalnızca ders hazırlığım için kullandım.</label>
+    <div class="callout" id="yazek" hidden></div>
+    <label class="check"><input type="checkbox" id="priv">Bu araca hiçbir öğrencinin adını, fotoğrafını ya da notunu yazmadım.</label>
+    <label>Materyalin altına eklenecek not<input type="text" id="labelTxt" value="Bu materyal yapay zekâ desteğiyle hazırlanmış; öğretmen tarafından düzenlenmiş ve kontrol edilmiştir."></label>
+    <div class="row"><button class="btn-h" id="next4">Notu ekle, ilerle</button><span class="need" id="n4"></span></div>
+  </div>
+</section>
+
+<section class="gate" id="g5">
+  <h2><small>KAPI 5</small>Öğrencinin düşünmesini devretme</h2>
+  <p class="why">Materyal cevabı vermemeli; öğrenciyi düşündürmeli.</p>
+  <p class="sum" id="s5"></p>
+  <div class="body">
+    <label>Öğrenci burada neyi kendisi düşünecek?<textarea id="think" rows="2" placeholder="Örnek: Cümleyi kendisi kuracak; hatasını arkadaşının sorusundan kendisi fark edecek"></textarea></label>
+    <div class="row"><button class="btn-m" id="hintBtn">Cevap vereni ipucu verene çevir</button><button class="btn-h" id="finish">Bitir</button></div>
+    <label class="check"><input type="checkbox" id="already">Materyal zaten cevap vermiyor, ipucu veriyor; değiştirmeden bitireceğim.</label>
+    <span class="need" id="n5"></span>
+  </div>
+</section>
+
+<section class="gate" id="g6" hidden>
+  <h2><small>SÜREÇ KAYDI</small>Beş kapıdan geçtin</h2>
+  <ul class="record" id="record"></ul>
+  <div class="row" style="margin-top:14px"><button class="btn-h" id="copyAll">Materyali kopyala</button><button class="btn-q" id="copyRec">Süreç kaydını kopyala</button><button class="btn-q" id="restart">Baştan başla</button><span class="note" id="copied"></span></div>
+</section>
+
+</div>
+
+<aside class="paper">
+  <h2 id="ptitle">Materyal</h2>
+  <span class="state" id="pstate">Taslak burada görünecek. Önce hedefini yaz.</span>
+  <textarea id="paper" readonly aria-label="Materyal metni"></textarea>
+  <div class="row"><button class="btn-q" id="stopBtn" hidden>Durdur</button><span class="err" id="perr"></span></div>
+</aside>
+</div>
+</div>
+
+<dialog id="relay">
+  <h2>Makinenin işi</h2>
+  <p class="rnote"><b>1.</b> Bu isteği kopyala ve kullandığın yapay zekâ sohbetine yapıştır.</p>
+  <textarea id="rPrompt" readonly rows="6" aria-label="İstek metni"></textarea>
+  <div class="row"><button class="btn-m" id="rCopy">İsteği kopyala</button><a class="rlink" href="https://claude.ai/new" target="_blank" rel="noopener">Claude’u yeni sekmede aç</a><span class="need ok" id="rCopied"></span></div>
+  <p class="rnote"><b>2.</b> Gelen cevabı buraya yapıştır.</p>
+  <textarea id="rAns" rows="7" aria-label="Yapay zekânın cevabı" placeholder="Cevabı buraya yapıştır"></textarea>
+  <div class="row"><button class="btn-h" id="rOk">Cevabı al, devam et</button><button class="btn-q" id="rCancel">Vazgeç</button><span class="need" id="rErr"></span></div>
+</dialog>
+<script>
+(function(){
+var $=function(id){return document.getElementById(id)};
+var S={step:1,machine:'',revisions:0,claims:[],hinted:false,label:false};
+var sample=null,ctl=null,busy=false;
+var paper=$('paper'),pstate=$('pstate'),perr=$('perr');
+
+var ERR={not_granted:'Bu sayfanın Claude’a sormasına izin verilmedi. Metni kendin yazıp kapılardan yine geçebilirsin.',
+  sampling_disabled:'Bu hesapta sayfadan Claude’a sorulamıyor. Metni kendin yazıp ilerleyebilirsin.',
+  rate_limited:'Çok sık soruldu ya da kullanım sınırına gelindi. Biraz sonra yeniden dene.',
+  session_expired:'Oturumun kapanmış. Yeniden giriş yapıp sayfayı aç.',
+  refused:'Claude bu isteği yanıtlamadı. İsteği değiştirip yeniden dene.',
+  invalid_json:'Liste okunamadı. Yeniden çıkar ya da kendi maddeni ekle.',
+  prompt_too_large:'Metin çok uzun. Kısaltıp yeniden dene.',
+  empty_completion:'Yanıt boş geldi. Yeniden dene.'};
+function say(e){perr.textContent=e&&e.code==='cancelled'?'':(ERR[e&&e.code]||'Bağlantıda bir sorun oldu. Yeniden dene.');}
+function clean(t){return String(t).replace(/\*\*/g,'').replace(/^#{1,6}\s*/gm,'').replace(/^\s*[*•]\s+/gm,'- ');}
+function diff(a,b){var n=Math.min(a.length,b.length),p=0,s=0;while(p<n&&a[p]===b[p])p++;while(s<n-p&&a[a.length-1-s]===b[b.length-1-s])s++;return Math.max(a.length,b.length)-p-s;}
+function words(t){return (t.trim().match(/\S+/g)||[]).length;}
+// Çıktı türü: sınıf etkinliği ya da Claude'a verilecek yapım yönergesi (dijital araç).
+var turTouched=false;
+function dij(){return $('tur').value==='dijital';}
+var DIJ='Bir öğretmen, Claude adlı yapay zekâ asistanına tek sayfalık, tarayıcıda çalışan etkileşimli bir öğrenme aracı yaptıracak. Senin işin aracı yazmak DEĞİL; öğretmenin Claude’a yapıştıracağı YAPIM YÖNERGESİNİN taslağını yazmak.\n'
+ +'Kurallar: en fazla 230 kelime. Düz metin; yıldız, diyez, tablo kullanma. Kâğıt, makas, kutu gibi fiziksel malzeme önerme; her şey ekranda olsun. '
+ +'İlk satır aracın adı olsun. Sonra şu başlıkları sırayla kullan ve her birini doldur: AMAÇ; KULLANICI; EKRANDA NE OLACAK (kaydırıcı, düğme gibi kontroller ve görsel alan); ÖĞRENCİ NE YAPACAK (numaralı adımlar); '
+ +'DOĞRU OLMASI GEREKEN BİLGİLER (aracın dayanacağı kuralları, formülleri ve sayısal değerleri açıkça yaz); SINIRLAR (Türkçe arayüz, kişisel veri istemez, telefonda ve projeksiyonda çalışır, internet gerektirmez). Yalnızca yönergeyi yaz.\n\n';
+function HINT_DIJ(b){return 'Aşağıdaki metin, bir öğretmenin Claude’a etkileşimli bir öğrenme aracı yaptırmak için vereceği yapım yönergesidir. Yönergeyi, üretilecek araç öğrencinin düşünmesini elinden almayacak biçimde değiştir: '
+ +'araç sonucu hemen göstermesin; önce öğrenciye tahmin ettirsin, sonra göstersin; yanlışta cevabı değil ipucunu versin; sonunda öğrenciden kendi cümlesiyle bir açıklama istesin. '
+ +'Öğretmenin öğrenciden beklediği düşünme: «'+$('think').value.trim()+'». Başlıkları, doğru olması gereken bilgileri, öğretmenin yaptığı düzeltmeleri ve son satırdaki not isteğini koru. Uzunluğu belirgin biçimde artırma. Düz metin yaz; yıldız, diyez kullanma. Yalnızca yönergeyi yaz.\n\nYÖNERGE:\n'+b;}
+
+function setBusy(on,msg){busy=on;$('stopBtn').hidden=!on;if(msg!=null)pstate.textContent=msg;
+  ['draftBtn','reviseBtn','claimsBtn','hintBtn'].forEach(function(id){$(id).disabled=on||!sample;});refresh();}
+async function ask(prompt,into,tier){ if(!sample)return null; perr.textContent='';ctl=new AbortController();
+  try{var r=await sample(prompt,{cache:false,modelTier:tier||'quick',signal:ctl.signal,onText:function(u){if(into)paper.value=clean(u.text);}});
+    return clean(r.text);}catch(e){say(e);return null;} }
+
+function refresh(){
+  var gates=[1,2,3,4,5];
+  $('ptitle').textContent=dij()?'Yapım yönergesi (Claude’a verilecek)':'Materyal';$('turnote').hidden=!dij();
+  gates.forEach(function(i){var g=$('g'+i),li=$('steps').children[i-1];
+    g.classList.toggle('locked',S.step<i);g.classList.toggle('now',S.step===i);g.classList.toggle('done',S.step>i);
+    li.classList.toggle('now',S.step===i);li.classList.toggle('done',S.step>i);});
+  $('g6').hidden=S.step<6;
+  paper.readOnly=S.step<2||busy;
+  // Kapı 1
+  var ok1=$('kime').value.trim().length>=8&&$('neyi').value.trim().length>=10&&$('neden').value.trim().length>=10;
+  $('draftBtn').disabled=busy||!sample||!ok1;
+  $('n1').textContent=ok1?'':'Kime, neyi ve neden: üçü de dolu olmalı.';
+  // Kapı 2
+  var d=diff(S.machine,paper.value),touched=S.revisions>0||d>=10;
+  $('next2').disabled=busy||!touched||!paper.value.trim();
+  $('n2').className='need'+(touched?' ok':'');
+  $('n2').textContent=touched?('Kalem sende: '+(S.revisions?S.revisions+' kez değiştirttin':'')+(S.revisions&&d>=10?', ':'')+(d>=10?'elle '+d+' karakter değiştirdin':'')+'.'):'Henüz hiçbir şeyi değiştirmedin.';
+  // Kapı 3
+  var open=S.claims.filter(function(c){return !c.res}).length;
+  $('next3').disabled=busy||!S.claims.length||open>0;
+  $('n3').className='need'+(S.claims.length&&!open?' ok':'');
+  $('n3').textContent=!S.claims.length?'Önce kontrol listesi gerekli.':open?open+' satır karar bekliyor.':'Her satıra karar verdin.';
+  // Kapı 4
+  var any=$('y1').checked||$('y2').checked||$('y3').checked,none=$('y0').checked,answered=any||none;
+  var yz=$('yazek');yz.hidden=!answered;yz.className='callout'+(any?'':' calm');yz.textContent='';
+  if(any){yz.append('Bu kullanım için YAZEK’te etik beyan formu doldurman gerekir. Onay beklemezsin; beyan edip başlarsın. ');var a=document.createElement('a');a.href='https://yazek.meb.gov.tr/';a.target='_blank';a.rel='noopener';a.textContent='yazek.meb.gov.tr';yz.append(a);}
+  else if(none){yz.textContent='Ders hazırlığı ve materyal üretimi için YAZEK’te beyan gerekmez. Öğrenciyle kullanmaya karar verirsen gerekir.';}
+  var ok4=answered&&$('priv').checked&&$('labelTxt').value.trim().length>=10;
+  $('next4').disabled=busy||!ok4;
+  $('n4').textContent=ok4?'':!answered?'Nasıl kullanacağını işaretle.':!$('priv').checked?'Kişisel veri satırını onayla.':'Not satırı boş olamaz.';
+  // Kapı 5
+  var ok5=$('think').value.trim().length>=15&&(S.hinted||$('already').checked);
+  $('hintBtn').disabled=busy||!sample||$('think').value.trim().length<15;
+  $('finish').disabled=busy||!ok5;
+  $('n5').textContent=ok5?'':$('think').value.trim().length<15?'Önce öğrencinin neyi düşüneceğini yaz.':'Materyali çevirt ya da zaten ipucu verdiğini işaretle.';
+}
+
+// Kapı 1 -> taslak
+$('draftBtn').onclick=async function(){
+  var p='Bir öğretmenin asistanısın. Aşağıdaki hedefe göre kısa bir ders materyali TASLAĞI yaz.\n'
+   +'Kurallar: en fazla 200 kelime. Düz metin yaz; yıldız, diyez, tablo kullanma. İlk satır başlık, sonra numaralı adımlar. '
+   +'Yönergeler Türkçe olsun; ders bir yabancı dil dersiyse öğrencinin söyleyeceği örnekler o dilde olsun. '
+   +'İçinde en az iki somut bilgi, kural ya da örnek cümle bulunsun. Hiçbir öğrencinin kişisel bilgisini isteme. Yalnızca materyali yaz, açıklama ekleme.\n\n';
+  if(dij())p=DIJ;
+  p+='KİME: '+$('kime').value.trim()+'\nNEYİ: '+$('neyi').value.trim()+'\nNEDEN: '+$('neden').value.trim();
+  paper.value='';setBusy(true,'Makine taslağı yazıyor…');
+  var t=await ask(p,true,'quick');setBusy(false);
+  if(t){S.machine=t;paper.value=t;S.revisions=0;S.step=2;
+    $('labelTxt').value=dij()?'Bu araç yapay zekâ ile üretilmiş; içeriği öğretmen tarafından kontrol edilmiştir.':'Bu materyal yapay zekâ desteğiyle hazırlanmış; öğretmen tarafından düzenlenmiş ve kontrol edilmiştir.';
+    $('s1').textContent='Hedef: '+$('kime').value.trim().slice(0,70)+' · '+$('neyi').value.trim().slice(0,90);
+    pstate.textContent='Taslak geldi. Şimdi kalem sende: bu kâğıdın üstünde yazabilirsin.';}
+  else pstate.textContent='Taslak alınamadı.';
+  refresh();
+};
+$('clearBtn').onclick=function(){['kime','neyi','neden'].forEach(function(i){$(i).value='';});$('exnote').hidden=true;$('kime').focus();refresh();};
+
+// Kapı 2
+$('reviseBtn').onclick=async function(){var w=$('revise').value.trim();if(w.length<5){$('n2').textContent='Ne değişeceğini yaz.';return;}
+  var before=paper.value;
+  var p='Aşağıdaki ders materyalini öğretmenin isteğine göre değiştir. Yalnızca istenen değişikliği yap, geri kalanı koru. Düz metin yaz; yıldız, diyez kullanma. Yalnızca materyali yaz.\n\nÖĞRETMENİN İSTEĞİ: '+w+'\n\nMATERYAL:\n'+before;
+  setBusy(true,'Makine isteğine göre değiştiriyor…');var t=await ask(p,true,'quick');setBusy(false);
+  if(t){S.machine=t;paper.value=t;S.revisions++;$('revise').value='';pstate.textContent='Değişti. Beğenmediysen yine değiştir.';}else{paper.value=before;pstate.textContent='Değiştirilemedi.';}
+  refresh();};
+$('next2').onclick=function(){var d=diff(S.machine,paper.value);
+  $('s2').textContent='Kalem sende: '+(S.revisions?S.revisions+' kez değiştirttin':'')+(S.revisions&&d>=10?', ':'')+(d>=10?'elle '+d+' karakter değiştirdin':'')+'.';
+  S.step=3;refresh();getClaims();};
+
+// Kapı 3
+function drawClaims(){var ul=$('claims');ul.textContent='';
+  S.claims.forEach(function(c,i){var li=document.createElement('li');if(c.res)li.className='res';
+    if(c.own){var inp=document.createElement('input');inp.type='text';inp.id='own'+i;inp.placeholder='Kontrol edeceğin ifade';inp.value=c.ifade;inp.oninput=function(){c.ifade=inp.value;};li.append(inp);}
+    else{var q=document.createElement('q');q.textContent=c.ifade;li.append(q);
+      var s1=document.createElement('span');s1.textContent='Neden: '+c.neden;var s2=document.createElement('span');s2.textContent='Nereden bakılır: '+c.nasil;li.append(s1,s2);}
+    var sel=document.createElement('select');sel.id='res'+i;sel.setAttribute('aria-label','Kararın');
+    [['','Kararın nedir?'],['dogru','Baktım, doğru'],['duzelt','Yanlıştı, düzelttim'],['cikar','Emin olamadım, metinden çıkardım']].forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];sel.append(op);});
+    sel.value=c.res||'';sel.onchange=function(){c.res=sel.value;li.className=c.res?'res':'';refresh();};li.append(sel);ul.append(li);});}
+async function getClaims(){ if(!sample){pstate.textContent='Kontrol listesini kendin ekle.';return;}
+  var p='Aşağıdaki ders materyalinde, öğretmenin kullanmadan önce KENDİSİNİN doğrulaması gereken ifadeleri bul: olgular, sayılar, formüller, tarihler, özel adlar, dil bilgisi kuralları, örnek cümlelerin doğruluğu, süre ve düzey uygunluğu. '
+   +'Sen doğrulama yapma, yalnızca listele. En az 2, en çok 4 madde. Yalnızca bir JSON dizisi döndür, başka hiçbir şey yazma. Biçim: '
+   +'[{"ifade":"metinden en çok 14 kelimelik alıntı","neden":"neden kontrol edilmeli, bir kısa cümle","nasil":"nereden kontrol edilir, bir kısa cümle"}]\n\nMATERYAL:\n'+paper.value;
+  perr.textContent='';ctl=new AbortController();setBusy(true,'Makine kontrol edilecekleri listeliyor…');
+  try{var arr=await sample.json(p,{cache:false,modelTier:'quick',signal:ctl.signal});
+    if(!Array.isArray(arr))throw {code:'invalid_json'};
+    var own=S.claims.filter(function(c){return c.own});
+    S.claims=arr.slice(0,5).map(function(x){return {ifade:String(x&&x.ifade||'').slice(0,200),neden:String(x&&x.neden||'').slice(0,200),nasil:String(x&&x.nasil||'').slice(0,200),res:''};}).filter(function(c){return c.ifade}).concat(own);
+    pstate.textContent='Liste hazır. Doğrulamak sende: her satıra karar ver.';
+  }catch(e){say(e);pstate.textContent='Liste çıkarılamadı.';}
+  setBusy(false);drawClaims();refresh();}
+$('claimsBtn').onclick=getClaims;
+$('addClaim').onclick=function(){S.claims.push({ifade:'',neden:'',nasil:'',res:'',own:true});drawClaims();refresh();var el=$('own'+(S.claims.length-1));if(el)el.focus();};
+$('next3').onclick=function(){var n=S.claims.length,f=S.claims.filter(function(c){return c.res==='duzelt'}).length,x=S.claims.filter(function(c){return c.res==='cikar'}).length;
+  $('s3').textContent='Doğrulama: '+n+' ifadeye baktın; '+f+' düzeltme, '+x+' çıkarma.';S.step=4;refresh();};
+
+// Kapı 4
+['y1','y2','y3'].forEach(function(id){$(id).onchange=function(){if($(id).checked)$('y0').checked=false;refresh();};});
+$('y0').onchange=function(){if($('y0').checked)['y1','y2','y3'].forEach(function(i){$(i).checked=false;});refresh();};
+$('next4').onclick=function(){var any=$('y1').checked||$('y2').checked||$('y3').checked,l=$('labelTxt').value.trim();
+  if(!S.label){paper.value=paper.value.replace(/\s+$/,'')+'\n\n'+(dij()?'Aracın alt kısmında şu not görünsün: «'+l+'»':l);S.label=true;}
+  $('s4').textContent=(any?'YAZEK’te etik beyan gerekir.':'Ders hazırlığı: beyan gerekmez.')+' Not eklendi, kişisel veri yok.';S.step=5;refresh();};
+
+// Kapı 5
+$('hintBtn').onclick=async function(){var before=paper.value;
+  var p='Aşağıdaki ders materyalini, öğrencinin düşünmesini elinden almayacak biçimde yeniden yaz. Cevapları ve hazır cümleleri verme; yerine ipucu, yönlendirici soru ve öğrencinin kendi kendini kontrol edeceği bir adım koy. '
+   +'Öğretmenin öğrenciden beklediği düşünme: «'+$('think').value.trim()+'». İçeriği, düzeyi ve öğretmenin yaptığı düzeltmeleri koru. Uzunluğu belirgin biçimde artırma. Son satırdaki açıklama notunu aynen koru. Düz metin yaz; yıldız, diyez kullanma. Yalnızca materyali yaz.\n\nMATERYAL:\n'+before;
+  if(dij())p=HINT_DIJ(before);
+  setBusy(true,'Makine ipucu veren hâle çeviriyor…');var t=await ask(p,true,'quick');setBusy(false);
+  if(t){paper.value=t;S.hinted=true;pstate.textContent='Çevrildi. Son sözü yine sen söyle: beğenmediğin yeri düzelt.';}else{paper.value=before;pstate.textContent='Çevrilemedi.';}
+  refresh();};
+$('finish').onclick=function(){$('s5').textContent='Öğrencinin işi: '+$('think').value.trim().slice(0,120);
+  var any=$('y1').checked||$('y2').checked||$('y3').checked,n=S.claims.length;
+  var rows=[['1 · Hedef',$('kime').value.trim()+' · '+$('neyi').value.trim()],['2 · Kalem',$('s2').textContent],['3 · Doğrulama',$('s3').textContent],
+    ['4 · Açıklık',any?'Öğrenciyle kullanılacak: YAZEK’te etik beyan verilecek. Not eklendi.':'Yalnızca ders hazırlığı. Not eklendi.'],['5 · Düşünme',$('think').value.trim()]];
+  var ul=$('record');ul.textContent='';rows.forEach(function(r){var li=document.createElement('li'),b=document.createElement('b');b.textContent=r[0]+': ';li.append(b,r[1]);ul.append(li);});
+  $('copyAll').textContent=dij()?'Yönergeyi kopyala':'Materyali kopyala';
+  S.step=6;pstate.textContent=dij()?'Bitti. Yönergeyi kopyala, Claude’da yeni bir sohbete yapıştır; aracı o kurar. Çıkan aracı da aynı gözle dene ve kontrol et.':'Bitti. '+words(paper.value)+' kelimelik materyal senin kararlarınla hazır.';refresh();$('g6').scrollIntoView({block:'nearest'});};
+
+function copy(text){navigator.clipboard.writeText(text).then(function(){$('copied').textContent='Kopyalandı.';},function(){paper.focus();paper.select();$('copied').textContent='Kopyalanamadı; metni seçtim, Ctrl/Cmd+C ile al.';});}
+$('copyAll').onclick=function(){copy(paper.value);};
+$('copyRec').onclick=function(){copy([].map.call($('record').children,function(li){return li.textContent}).join('\n'));};
+$('restart').onclick=function(){S={step:1,machine:'',revisions:0,claims:[],hinted:false,label:false};paper.value='';
+  ['revise','think'].forEach(function(i){$(i).value='';});['y0','y1','y2','y3','priv','already'].forEach(function(i){$(i).checked=false;});
+  $('claims').textContent='';$('copied').textContent='';pstate.textContent='Taslak burada görünecek. Önce hedefini yaz.';refresh();window.scrollTo(0,0);};
+$('stopBtn').onclick=function(){if(ctl)ctl.abort();};
+$('tur').onchange=function(){turTouched=true;refresh();};
+document.addEventListener('input',function(e){
+  // Hedefte simülasyon, oyun gibi bir söz geçiyorsa çıktı türünü dijital araca çevir (kullanıcı elle seçmediyse).
+  if(!turTouched&&S.step===1&&e.target&&e.target.id==='neyi')$('tur').value=/sim[uü]lasyon|oyun|uygulama|etkile[sş]imli|interaktif|animasyon|dijital/i.test($('neyi').value)?'dijital':'sinif';
+  refresh();});
+
+refresh();
+var banner=$('banner');
+function noClaude(){banner.hidden=false;banner.textContent='Bu görünümde sayfa Claude’a soramıyor. Araç yine çalışır: materyali sağdaki kâğıda kendin yaz ya da yapıştır, kapılardan sırayla geç.';
+  S.step=Math.max(S.step,2);paper.readOnly=false;S.revisions=1;pstate.textContent='Materyalini buraya yaz ya da yapıştır.';refresh();}
+// Web sürümü: sayfa yapay zekâya kendisi bağlanmaz. Her istekte metni gösterir; kullanıcı kendi sohbetine yapıştırıp cevabı geri getirir.
+function relay(prompt,json){return new Promise(function(res,rej){var d=$('relay');
+  $('rPrompt').value=prompt;$('rAns').value='';$('rErr').textContent='';$('rCopied').textContent='';d.showModal();$('rPrompt').scrollTop=0;
+  $('rCopy').onclick=function(){navigator.clipboard.writeText(prompt).then(function(){$('rCopied').textContent='Kopyalandı. Şimdi sohbetine yapıştır.';},function(){$('rPrompt').focus();$('rPrompt').select();$('rCopied').textContent='Metni seçtim; Ctrl/Cmd+C ile kopyala.';});};
+  $('rOk').onclick=function(){var t=$('rAns').value.trim();if(t.length<10){$('rErr').textContent='Önce yapay zekânın cevabını buraya yapıştır.';return;}
+    if(json){var m=t.match(/\[[\s\S]*\]/),v;try{v=JSON.parse(m?m[0]:t);}catch(e){$('rErr').textContent='Liste okunamadı. Cevabın tamamını, köşeli parantezleriyle birlikte yapıştır.';return;}d.close();res(v);}
+    else{d.close();res({text:t});}};
+  $('rCancel').onclick=function(){d.close();rej({code:'cancelled'});};
+  d.oncancel=function(){rej({code:'cancelled'});};});}
+sample=function(p){return relay(p,false);};sample.json=function(p){return relay(p,true);};
+banner.hidden=false;banner.textContent='Bu sayfa yapay zekâya kendisi bağlanmaz, hesap da istemez. Makinenin işi gelince sana bir istek metni verir: kopyala, kullandığın yapay zekâ sohbetine (Claude, ChatGPT, Gemini) yapıştır, cevabı buraya geri getir. Kapılar yine sırayla açılır.';
+setBusy(false);
+})();
+</script>
+
+</html>
